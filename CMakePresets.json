@@ -1,0 +1,37 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 21,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "win64",
+      "displayName": "Windows 64 bit VS build",
+      "description": "Windows 64 bit VS build",
+      "generator": "Visual Studio 16 2019",
+      "binaryDir": "${sourceDir}/../libssh_cpp_wrap_build_64",
+      "architecture" : { "value": "x64" },
+      "cacheVariables": {},
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      }
+    },
+    {
+      "name": "win32",
+      "inherits": "win64",
+      "displayName": "Windows 32 bit VS build",
+      "description": "Windows 32 bit VS build",
+      "binaryDir": "${sourceDir}/../libssh_cpp_wrap_build_32",
+      "architecture" : { "value": "Win32" },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      }
+    }
+  ]
+}
