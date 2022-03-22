@@ -29,6 +29,7 @@
 
 #include "libssh/libssh.h"
 
+#include "error_reporting.hpp"
 #include "session.hpp"
 
 namespace libssh_wrap
@@ -56,7 +57,7 @@ namespace libssh_wrap
             auto errorCode = ssh_connect(session.m_sshSession.get());
             if (errorCode != SSH_OK)
             {
-                throw std::runtime_error("ssh_connect unsuccessful");
+                ReportError("ssh_connect unsuccessful", session.m_sshSession.get());
             }
             m_session = std::move(session);
         }
@@ -92,7 +93,7 @@ namespace libssh_wrap
         }
 
         [[nodiscard("dropping the return value results in a session destruction")]]
-        std::shared_ptr<AuthenticatedConnection> Authenticate(char const* password);
+        std::shared_ptr<AuthenticatedConnection> Authenticate(char const* password) &&;
 
         std::shared_ptr<AuthenticatedConnection> Authenticate(std::nullptr_t) = delete;
 
@@ -145,7 +146,7 @@ namespace libssh_wrap
             auto errorCode = ssh_userauth_password(connection.GetSession(), nullptr, password);
             if (errorCode != SSH_OK)
             {
-                throw std::runtime_error("password authentication failed");
+                ReportError("password authentication failed", connection.GetSession());
             }
             m_connection = std::move(connection);
         }
@@ -166,7 +167,7 @@ namespace libssh_wrap
         Connection m_connection;
     };
 
-    inline std::shared_ptr<AuthenticatedConnection> libssh_wrap::Connection::Authenticate(char const* password)
+    inline std::shared_ptr<AuthenticatedConnection> libssh_wrap::Connection::Authenticate(char const* password) &&
     {
 #ifdef _MSC_VER
 #pragma warning(push)

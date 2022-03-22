@@ -101,7 +101,12 @@ namespace libssh_wrap
 
         void FillToCString(char(&out)[MaxCStringLength]) const noexcept
         {
-            snprintf(out, MaxCStringLength, "%uhh.%uhh.%uhh.%uhh", m_parts[0], m_parts[1], m_parts[2], m_parts[3]);
+            std::snprintf(out, MaxCStringLength, "%hhu.%hhu.%hhu.%hhu", m_parts[0], m_parts[1], m_parts[2], m_parts[3]);
+        }
+
+        int FillToCString(char out[], size_t outSize) const noexcept
+        {
+            return std::snprintf(out, outSize, "%hhu.%hhu.%hhu.%hhu", m_parts[0], m_parts[1], m_parts[2], m_parts[3]);
         }
 
         operator std::string() const
@@ -127,6 +132,11 @@ namespace libssh_wrap
         }
 
         constexpr uint8_t operator[](uint32_t index) const
+        {
+            return m_parts[index];
+        }
+
+        constexpr uint8_t& operator[](uint32_t index)
         {
             return m_parts[index];
         }

@@ -127,6 +127,7 @@ namespace libssh_wrap
             {
                 throw std::runtime_error("no valid connection passed");
             }
+
             auto session = sftp_new(connection->GetSession());
             if (session == nullptr)
             {
@@ -214,7 +215,7 @@ namespace libssh_wrap
                 throw std::runtime_error("no active sftp session");
             }
             
-            auto rc = int sftp_chmod(m_session.get(), fileName, targetPermissions);
+            auto rc = sftp_chmod(m_session.get(), fileName, targetPermissions);
             if (std::forward<Predicate>(predicate)(rc))
             {
                 throw std::runtime_error("error creating directory");
@@ -246,13 +247,13 @@ namespace libssh_wrap
         };
 
         std::unique_ptr<std::remove_pointer_t<sftp_session>, SessionDeleter> m_session;
-
     };
 
     class FileStream
     {
     public:
         FileStream(sftp_file file = nullptr)
+            : m_file(file)
         {}
 
         FileStream(FileStream&&) noexcept = default;
@@ -268,9 +269,14 @@ namespace libssh_wrap
 
             char buffer[bufferSize];
 
-            while (!in.eof())
+            do
             {
-                auto read = in.readsome(buffer, bufferSize);
+                in.read(buffer, bufferSize);
+                if (in.bad())
+                {
+                    throw std::runtime_error("error reading input stream");
+                }
+                auto read = in.gcount();
                 if (read > 0)
                 {
                     auto written = sftp_write(m_file.get(), buffer, read);
@@ -279,13 +285,7 @@ namespace libssh_wrap
                         throw std::runtime_error("error writing file");
                     }
                 }
-                else
-                {
-                    // TODO: alternative to sleeping???
-                    using namespace std::chrono_literals;
-                    std::this_thread::sleep_for(5ms);
-                }
-            }
+            } while (in);
         }
 
         template<size_t bufferSize = 1024>
@@ -381,7 +381,12 @@ namespace libssh_wrap
             static_assert(static_cast<int>(FileTruncation::Append) == 0, "relying on file trunction being 0 here");
             effectiveAccessMode &= ~static_cast<int>(FileTruncation::Truncate);
         }
-        return FileStream();
+        auto file = sftp_open(m_session.get(), fileName, effectiveAccessMode, permissions);
+        if (file == nullptr)
+        {
+            ReportError("error opening file", m_session->session);
+        }
+        return FileStream(file);
     }
 }
 

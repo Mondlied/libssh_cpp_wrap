@@ -30,6 +30,7 @@
 #include "libssh/libssh.h"
 
 #include "connection.hpp"
+#include "error_reporting.hpp"
 
 namespace libssh_wrap
 {
@@ -53,6 +54,13 @@ namespace libssh_wrap
             {
                 throw std::runtime_error("error generating ssh command channel");
             }
+            auto result = ssh_channel_open_session(channel);
+            if (result != SSH_OK)
+            {
+                ssh_channel_free(channel);
+                ReportError("error opening channel session", connection->GetSession());
+            }
+
             m_channel.reset(channel);
             m_connection = std::move(connection);
         }
@@ -91,7 +99,7 @@ namespace libssh_wrap
             auto rc = ssh_channel_request_exec(m_channel.get(), command);
             if (rc != SSH_OK)
             {
-                throw std::runtime_error("command execution failed");
+                ReportError("command execution failed", m_connection->GetSession());
             }
             m_executed = true;
 
@@ -135,41 +143,67 @@ namespace libssh_wrap
             return std::move(executionChannel->m_connection);
         }
 
-        template<size_t N>
-        static bool StreamPipe(ssh_channel channel, char(&buffer)[N], int isStdErr, std::ostream& stream, char const* errorMessage)
+        enum class StreamPipeResult
         {
-            bool hasRead = false;
+            Data,
+            Eof,
+            Error,
+        };
 
+        /**
+         * \return true, if an error happened 
+         */
+        template<size_t N>
+        static StreamPipeResult StreamPipeSome(ssh_channel channel, char(&buffer)[N], int isStdErr, std::ostream& stream)
+        {
             int bytesRead = ssh_channel_read(channel, buffer, N, isStdErr);
-            while (bytesRead > 0)
+            if (bytesRead == 0)
             {
-                hasRead = true;
+                return StreamPipeResult::Eof;
+            }
+            else if (bytesRead > 0)
+            {
                 stream.write(buffer, static_cast<size_t>(bytesRead));
-                bytesRead = ssh_channel_read(channel, buffer, sizeof(buffer), 0);
+                return StreamPipeResult::Data;
             }
-
-            if (bytesRead != 0)
+            else
             {
-                throw std::runtime_error(errorMessage);
+                return StreamPipeResult::Error;
             }
-            return hasRead;
         }
 
         template<size_t bufferSize>
         void ConsumeStreams(std::ostream& outStream, std::ostream& errorStream) const
         {
-            {
-                char buffer[bufferSize];
+            char buffer[bufferSize];
 
-                while (StreamPipe(m_channel.get(), buffer, 0, outStream, "error reading stdout")
-                    || StreamPipe(m_channel.get(), buffer, 1, errorStream, "error reading stderr"))
+            StreamPipeResult inResult = StreamPipeResult::Data;
+            StreamPipeResult errResult = StreamPipeResult::Data;
+
+            while (inResult == StreamPipeResult::Data || errResult == StreamPipeResult::Data)
+            {
+                if (inResult != StreamPipeResult::Eof)
                 {
+                    inResult = StreamPipeSome(m_channel.get(), buffer, 0, outStream);
+                    if (inResult == StreamPipeResult::Error)
+                    {
+                        break;
+                    }
+                }
+                if (errResult != StreamPipeResult::Eof)
+                {
+                    errResult = StreamPipeSome(m_channel.get(), buffer, 1, errorStream);
                 }
             }
 
-            if (ssh_channel_send_eof(m_channel.get()) != SSH_OK)
+            if (inResult == StreamPipeResult::Error
+                || errResult == StreamPipeResult::Error)
             {
-                throw std::runtime_error("error sending eof to channel");
+                bool channelClosed = ssh_channel_is_closed(m_channel.get());
+                if (!channelClosed)
+                {
+                    ReportError("reading the stdin/stdout failed", m_connection->GetSession());
+                }
             }
         }
 
@@ -179,6 +213,7 @@ namespace libssh_wrap
         {
             void operator()(ssh_channel channel) const noexcept
             {
+                ssh_channel_close(channel);
                 ssh_channel_free(channel);
             }
         };

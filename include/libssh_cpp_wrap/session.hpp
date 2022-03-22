@@ -26,6 +26,8 @@
 
 #include "libssh/libssh.h"
 
+#include "connection.hpp"
+
 namespace libssh_wrap
 {
     class Connection;

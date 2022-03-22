@@ -44,6 +44,7 @@ add_library(libssh_cpp_wrap INTERFACE)
 target_sources(libssh_cpp_wrap PUBLIC
     include/libssh_cpp_wrap/connection.hpp
     include/libssh_cpp_wrap/command_execution_channel.hpp
+    include/libssh_cpp_wrap/error_reporting.hpp
     include/libssh_cpp_wrap/ip.hpp
     include/libssh_cpp_wrap/session_options.hpp
     include/libssh_cpp_wrap/session.hpp
