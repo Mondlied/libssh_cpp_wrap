@@ -116,10 +116,7 @@ namespace libssh_wrap
             return buffer;
         }
 
-        friend auto operator<=>(IpV4 const& ip1, IpV4 const& ip2) noexcept
-        {
-            return ip1.m_parts <=> ip2.m_parts;
-        }
+        friend auto operator<=>(IpV4 const&, IpV4 const&) noexcept = default;
 
         friend std::ostream& operator<<(std::ostream& s, IpV4 const& ip)
         {

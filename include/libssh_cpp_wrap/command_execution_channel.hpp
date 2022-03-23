@@ -20,6 +20,7 @@
 #ifndef LIBSSH_CPP_WRAP_COMMAND_EXECUTION_CHANNEL
 #define LIBSSH_CPP_WRAP_COMMAND_EXECUTION_CHANNEL
 
+#include <chrono>
 #include <future>
 #include <memory>
 #include <ostream>
@@ -54,14 +55,13 @@ namespace libssh_wrap
             {
                 throw std::runtime_error("error generating ssh command channel");
             }
+            m_channel.reset(channel);
             auto result = ssh_channel_open_session(channel);
             if (result != SSH_OK)
             {
-                ssh_channel_free(channel);
                 ReportError("error opening channel session", connection->GetSession());
             }
 
-            m_channel.reset(channel);
             m_connection = std::move(connection);
         }
 
@@ -104,6 +104,29 @@ namespace libssh_wrap
             m_executed = true;
 
             ConsumeStreams<bufferSize>(outStream, errorStream);
+        }
+
+        template<size_t bufferSize = 1024, class Clock = std::chrono::steady_clock>
+        void Execute(const char* command, std::ostream& outStream, std::ostream& errorStream, std::chrono::milliseconds timeout)
+        {
+            if (m_executed)
+            {
+                throw std::runtime_error("there was already a command executed with this executor");
+            }
+            if (!m_channel)
+            {
+                throw std::runtime_error("no connection available");
+            }
+
+            auto rc = ssh_channel_request_exec(m_channel.get(), command);
+            if (rc != SSH_OK)
+            {
+                ReportError("command execution failed", m_connection->GetSession());
+            }
+            m_executed = true;
+
+            auto waitEnd = Clock::now() + timeout;
+            ConsumeStreamsTimeout<bufferSize, Clock>(outStream, errorStream, waitEnd);
         }
 
         /**
@@ -172,6 +195,28 @@ namespace libssh_wrap
             }
         }
 
+        /**
+         * \return true, if an error happened
+         */
+        template<size_t N>
+        static StreamPipeResult StreamPipeSomeTimeout(ssh_channel channel, char(&buffer)[N], int isStdErr, std::ostream& stream, std::chrono::milliseconds timeout)
+        {
+            int bytesRead = ssh_channel_read_timeout(channel, buffer, N, isStdErr, timeout / std::chrono::milliseconds(1));
+            if (bytesRead == 0)
+            {
+                return StreamPipeResult::Eof;
+            }
+            else if (bytesRead > 0)
+            {
+                stream.write(buffer, static_cast<size_t>(bytesRead));
+                return StreamPipeResult::Data;
+            }
+            else
+            {
+                return StreamPipeResult::Error;
+            }
+        }
+
         template<size_t bufferSize>
         void ConsumeStreams(std::ostream& outStream, std::ostream& errorStream) const
         {
@@ -193,6 +238,51 @@ namespace libssh_wrap
                 if (errResult != StreamPipeResult::Eof)
                 {
                     errResult = StreamPipeSome(m_channel.get(), buffer, 1, errorStream);
+                }
+            }
+
+            if (inResult == StreamPipeResult::Error
+                || errResult == StreamPipeResult::Error)
+            {
+                bool channelClosed = ssh_channel_is_closed(m_channel.get());
+                if (!channelClosed)
+                {
+                    ReportError("reading the stdin/stdout failed", m_connection->GetSession());
+                }
+            }
+        }
+
+        template<size_t bufferSize, class Clock>
+        void ConsumeStreamsTimeout(std::ostream& outStream, std::ostream& errorStream, typename Clock::time_point waitEnd) const
+        {
+            char buffer[bufferSize];
+
+            StreamPipeResult inResult = StreamPipeResult::Data;
+            StreamPipeResult errResult = StreamPipeResult::Data;
+
+            while (inResult == StreamPipeResult::Data || errResult == StreamPipeResult::Data)
+            {
+                if (inResult != StreamPipeResult::Eof)
+                {
+                    std::chrono::milliseconds remainingTime = std::chrono::duration_cast<std::chrono::milliseconds>(waitEnd - Clock::now());
+                    if (remainingTime <= decltype(remainingTime)::zero())
+                    {
+                        return;
+                    }
+                    inResult = StreamPipeSomeTimeout(m_channel.get(), buffer, 0, outStream, remainingTime);
+                    if (inResult == StreamPipeResult::Error)
+                    {
+                        break;
+                    }
+                }
+                if (errResult != StreamPipeResult::Eof)
+                {
+                    std::chrono::milliseconds remainingTime = std::chrono::duration_cast<std::chrono::milliseconds>(waitEnd - Clock::now());
+                    if (remainingTime <= decltype(remainingTime)::zero())
+                    {
+                        return;
+                    }
+                    errResult = StreamPipeSomeTimeout(m_channel.get(), buffer, 1, errorStream, remainingTime);
                 }
             }
 
