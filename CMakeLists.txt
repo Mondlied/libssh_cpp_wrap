@@ -45,7 +45,9 @@ target_sources(libssh_cpp_wrap PUBLIC
     include/libssh_cpp_wrap/connection.hpp
     include/libssh_cpp_wrap/command_execution_channel.hpp
     include/libssh_cpp_wrap/error_reporting.hpp
+    include/libssh_cpp_wrap/file_permissions.hpp
     include/libssh_cpp_wrap/ip.hpp
+    include/libssh_cpp_wrap/scp.hpp
     include/libssh_cpp_wrap/session_options.hpp
     include/libssh_cpp_wrap/session.hpp
     include/libssh_cpp_wrap/sftp_channel.hpp

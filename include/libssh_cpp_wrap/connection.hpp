@@ -118,6 +118,7 @@ namespace libssh_wrap
     };
 
     class ExecutionChannel;
+    class ScpSession;
     class SftpChannel;
 
     class AuthenticatedConnection
@@ -162,6 +163,7 @@ namespace libssh_wrap
 
         friend class Connection;
         friend class ExecutionChannel;
+        friend class ScpSession;
         friend class SftpChannel;
 
         Connection m_connection;

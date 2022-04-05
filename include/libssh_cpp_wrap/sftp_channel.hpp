@@ -37,44 +37,10 @@
 #include "libssh/sftp.h"
 
 #include "connection.hpp"
+#include "file_permissions.hpp"
 
 namespace libssh_wrap
 {
-
-    enum class FilePermission : mode_t
-    {
-        Read = 4,
-        Write = 2,
-        Execute = 1
-    };
-
-    struct FilePermissions
-    {
-        constexpr FilePermissions(mode_t mode)
-            : m_ownerPermission((mode >> 6) & 7),
-            m_groupPermission((mode >> 3) & 7),
-            m_worldPermission(mode & 7)
-        {
-        }
-
-        constexpr FilePermissions(mode_t ownerRights, mode_t groupRights, mode_t worldRights)
-            : m_ownerPermission(ownerRights & 7),
-            m_groupPermission(groupRights & 7),
-            m_worldPermission(worldRights & 7)
-        {
-        }
-
-        mode_t m_ownerPermission;
-        mode_t m_groupPermission;
-        mode_t m_worldPermission;
-
-        constexpr operator mode_t() const noexcept
-        {
-            return ((m_ownerPermission & 7) << 6) |
-                ((m_groupPermission & 7) << 3) |
-                ((m_worldPermission & 7));
-        }
-    };
 
     enum class FileAccessMode : int
     {

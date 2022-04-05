@@ -17,8 +17,9 @@
 // Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110 - 1301
 // USA
 
-#include <stdexcept>
 #include <iostream>
+#include <stdexcept>
+#include <string>
 
 #include "libssh_cpp_wrap/command_execution_channel.hpp"
 #include "libssh_cpp_wrap/connection.hpp"
@@ -27,22 +28,53 @@
 #include "libssh_cpp_wrap/session_options.hpp"
 #include "libssh_cpp_wrap/sftp_channel.hpp"
 
-int main()
+namespace
+{
+    void PrintUsage(std::ostream& out)
+    {
+        out <<
+            (
+                "Incorrect usage, should be:\n"
+                "Example <ip> <user name> <password>\n"
+            );
+    }
+}
+
+int main(int argc, char* argv[])
 {
     using namespace libssh_wrap;
 
-    constexpr IpV4 ip("127.0.0.1");
+    if (argc != 3)
+    {
+        PrintUsage(std::cerr);
+        return 1;
+    }
+
+    IpV4 ip(argv[1]);
+
+    if (ip == IpV4("0.0.0.0"))
+    {
+        std::cerr << "Unexpected value passed as ip: " << argv[1] << '\n';
+        return 1;
+    }
+
+    UserName username = argv[2];
 
     try
     {
         Session session = Session::Create();
         session.SetOption(ip);
         session.SetOption(Port());
-        session.SetOption(UserName("root"));
+        session.SetOption(username);
 
-#if 1
-        auto connection = Connection(std::move(session)).Authenticate("root");
+        std::string password;
+        std::cout << "enter the password\n";
+        std::cin >> password;
 
+        auto connection = Connection(std::move(session)).Authenticate(password.c_str());
+
+        ExecutionChannel(connection).Execute("ls -al", std::cout, std::cerr);
+#if 0
         ExecutionChannel(connection).Execute("ls -al", std::cout, std::cerr);
         auto future = ExecutionChannel(std::move(connection)).ExecuteAsync("ls -al", std::cout, std::cerr);
         connection = std::move(future.get());
