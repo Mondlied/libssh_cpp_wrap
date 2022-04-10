@@ -33,7 +33,7 @@ namespace libssh_wrap
     /**
      * Sets the ssh host to the given ip
      */
-    int ApplyOption(std::remove_pointer_t<ssh_session>& session, IpV4 const& ip) noexcept
+    inline int ApplyOption(std::remove_pointer_t<ssh_session>& session, IpV4 const& ip) noexcept
     {
         char buffer[IpV4::MaxCStringLength];
         ip.FillToCString(buffer);

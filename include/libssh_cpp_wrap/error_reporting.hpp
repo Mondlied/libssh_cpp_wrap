@@ -27,7 +27,7 @@
 
 namespace libssh_wrap
 {
-    void ReportError(char const* message, void* entity)
+    inline void ReportError(char const* message, void* entity)
     {
         std::string errorMessage;
         if (message != nullptr)

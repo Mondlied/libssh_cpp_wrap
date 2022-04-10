@@ -27,18 +27,26 @@
 #include "libssh_cpp_wrap/session.hpp"
 #include "libssh_cpp_wrap/session_options.hpp"
 #include "libssh_cpp_wrap/sftp_channel.hpp"
+#include "libssh_cpp_wrap/scp.hpp"
 
 namespace
 {
-    void PrintUsage(std::ostream& out)
-    {
-        out <<
-            (
-                "Incorrect usage, should be:\n"
-                "Example <ip> <user name> <password>\n"
-            );
-    }
+
+void PrintUsage(std::ostream& out)
+{
+    out <<
+        (
+            "Incorrect usage, should be:\n"
+            "Example <ip> <user name> <password>\n"
+        );
 }
+
+constexpr char const SshRemoteDirectory[] = "/home/root";
+
+constexpr char const SshRemoteTestFileName[] = "foo.txt";
+
+}
+
 
 int main(int argc, char* argv[])
 {
@@ -73,7 +81,31 @@ int main(int argc, char* argv[])
 
         auto connection = Connection(std::move(session)).Authenticate(password.c_str());
 
-        ExecutionChannel(connection).Execute("ls -al", std::cout, std::cerr);
+        //ExecutionChannel(connection).Execute("ls -al", std::cout, std::cerr);
+
+        {
+            std::stringstream stream;
+
+            for (int c = 500; c != 0; --c)
+            {
+                stream << "Hello world!\n";
+            }
+
+            ScpSession scp(connection, SshRemoteDirectory, ScpAccessMode::Write);
+            scp.WriteFile(SshRemoteTestFileName, stream, stream.tellp(), 0644);
+        }
+
+        {
+            std::stringstream stream;
+
+            for (int c = 500; c != 0; --c)
+            {
+                stream << "Hello world!\n";
+            }
+
+            ScpSession scp(connection, (std::string(SshRemoteDirectory) + SshRemoteTestFileName).c_str(), ScpAccessMode::Read);
+            scp.ReadFile(std::cout);
+        }
 #if 0
         ExecutionChannel(connection).Execute("ls -al", std::cout, std::cerr);
         auto future = ExecutionChannel(std::move(connection)).ExecuteAsync("ls -al", std::cout, std::cerr);

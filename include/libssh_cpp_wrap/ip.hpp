@@ -20,6 +20,7 @@
 #ifndef LIBSSH_CPP_WRAP_IP
 #define LIBSSH_CPP_WRAP_IP
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <cstdio>
@@ -137,8 +138,44 @@ namespace libssh_wrap
         {
             return m_parts[index];
         }
-    private:
 
+        [[nodiscard]] constexpr bool PrefixMatches(IpV4 const& other, size_t byteCount) const noexcept
+        {
+            return std::equal(m_parts.begin(),
+                              m_parts.begin() + (std::min)(byteCount, m_parts.size()),
+                              other.m_parts.begin());
+        }
+
+        [[nodiscard]] constexpr IpV4 WithSuffix(uint8_t p4)
+        {
+            return IpV4(m_parts[0], m_parts[1], m_parts[2], p4);
+        }
+        
+        [[nodiscard]] constexpr IpV4 WithSuffix(uint8_t p3, uint8_t p4)
+        {
+            return IpV4(m_parts[0], m_parts[1], p3, p4);
+        }
+        
+        [[nodiscard]] constexpr IpV4 WithSuffix(uint8_t p2, uint8_t p3, uint8_t p4)
+        {
+            return IpV4(m_parts[0], p2, p3, p4);
+        }
+
+        [[nodiscard]] constexpr IpV4 WithPrefix(uint8_t p1)
+        {
+            return IpV4(p1, m_parts[1], m_parts[2], m_parts[3]);
+        }
+
+        [[nodiscard]] constexpr IpV4 WithPrefix(uint8_t p1, uint8_t p2)
+        {
+            return IpV4(p1, p2, m_parts[2], m_parts[3]);
+        }
+
+        [[nodiscard]] constexpr IpV4 WithPrefix(uint8_t p1, uint8_t p2, uint8_t p3)
+        {
+            return IpV4(p1, p2, p3, m_parts[3]);
+        }
+    private:
         std::array<uint8_t, 4> m_parts;
     };
 

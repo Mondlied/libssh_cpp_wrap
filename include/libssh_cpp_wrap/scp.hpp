@@ -197,7 +197,8 @@ namespace libssh_wrap
 
             int read = 0;
             while (read < size) {
-                int numBytes = ssh_scp_read(m_session.get(), buffer, size - read);
+                int readCount = (std::min)(size - read, bufferSize);
+                int numBytes = ssh_scp_read(m_session.get(), buffer, readCount);
                 if (numBytes < 0)
                 {
                     ReportError("ssh_scp_read", m_connection->GetSession());

@@ -61,12 +61,16 @@ target_compile_features(libssh_cpp_wrap INTERFACE cxx_std_20)
 
 target_link_libraries(libssh_cpp_wrap INTERFACE ssh)
 
-add_executable(Example ssh.cpp)
-target_link_libraries(Example PRIVATE libssh_cpp_wrap)
-set_target_properties(Example PROPERTIES VS_DEBUGGER_ENVIRONMENT
-    # note $<TARGET_FILE_DIR:OpenSSL::SSL> and $<TARGET_FILE_DIR:ZLIB::ZLIB> point to the lib directories
-    "PATH=$<TARGET_FILE_DIR:ssh>;$<TARGET_FILE_DIR:OpenSSL::SSL>/../bin;$<TARGET_FILE_DIR:ZLIB::ZLIB>/../bin;$ENV{PATH}"
-)
+set(LIBSSH_WRAP_INCLUDE_EXAMPLE_EXE False CACHE BOOL "Add the libssh_wrap example to the project?")
+
+if(LIBSSH_WRAP_INCLUDE_EXAMPLE_EXE)
+    add_executable(Example EXCLUDE_FROM_ALL ssh.cpp)
+    target_link_libraries(Example PRIVATE libssh_cpp_wrap)
+    set_target_properties(Example PROPERTIES VS_DEBUGGER_ENVIRONMENT
+        # note $<TARGET_FILE_DIR:OpenSSL::SSL> and $<TARGET_FILE_DIR:ZLIB::ZLIB> point to the lib directories
+        "PATH=$<TARGET_FILE_DIR:ssh>;$<TARGET_FILE_DIR:OpenSSL::SSL>/../bin;$<TARGET_FILE_DIR:ZLIB::ZLIB>/../bin;$ENV{PATH}"
+    )
+endif()
 
 set(LIBSSH_CPP_WRAP_NOINSTALL True CACHE BOOL "don't add installation logic to libssh_cpp_wrap")
 
